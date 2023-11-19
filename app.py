@@ -54,7 +54,8 @@ def webhook():
 
         # Handle the response from the Google Apps Script if needed
         if response.status_code == 200:
-            return "Data sent to Google Apps Script successfully"
+            # return "Data sent to Google Apps Script successfully"
+             return jsonify(data)  # Returning the incoming data as JSON
         else:
             app.logger.error(f"Failed to send data to Google Apps Script. Status code: {response.status_code}")
             return "Failed to send data to Google Apps Script"
