@@ -122,7 +122,7 @@ def webhook():
         response = requests.post(GOOGLE_SCRIPT_URL, json=data)
 
         if response.status_code == 200:
-            return "Data sent to Google Apps Script successfully"
+            return jsonify(data)
         else:
             return "Failed to send data to Google Apps Script"
     elif request.method == 'GET':
