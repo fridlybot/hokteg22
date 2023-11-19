@@ -42,8 +42,8 @@ app = Flask(__name__)
 CORS(app)
 
 # Replace with your Google Apps Script web app URL
-# GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzRuc_TqUsLK7bmYj3QLvl8-MtpeGOCTV_dOoMLm2DzOK2wZAT7n0hRRA4-KMFv6wBWSw/exec"
-GOOGLE_SCRIPT_URL = "https://telegramrequestbot.onrender.com/webhook"
+GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzRuc_TqUsLK7bmYj3QLvl8-MtpeGOCTV_dOoMLm2DzOK2wZAT7n0hRRA4-KMFv6wBWSw/exec"
+
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
