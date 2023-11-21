@@ -29,69 +29,78 @@
 
 
 
-
-
-from flask import Flask, request, jsonify
+from flask import Flask, request
 from flask_cors import CORS 
 import requests
-
+import sqlite3
 
 app = Flask(__name__)
-
-# Use Flask-CORS with default options
 CORS(app)
 
 # Replace with your Google Apps Script web app URL
 GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzRuc_TqUsLK7bmYj3QLvl8-MtpeGOCTV_dOoMLm2DzOK2wZAT7n0hRRA4-KMFv6wBWSw/exec"
 
+# SQLite database file
+DB_FILE = "dataDB.db"
 
+# Create a table if it doesn't exist
+def create_table():
+    connection = sqlite3.connect(DB_FILE)
+    cursor = connection.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id INTEGER,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS order_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER,
+            title TEXT,
+            quantity INTEGER,
+            price FLOAT
+        )
+    ''')
+    connection.commit()
+    connection.close()
+
+# Route to handle incoming data and store it in the database
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    try:
-        data = request.json  # Assuming the incoming data is in JSON format
-        
-        # Validate and sanitize the data if needed
+    data = request.json  # Assuming the incoming data is in JSON format
 
-        # Send the data to Google Apps Script
-        response = requests.post(GOOGLE_SCRIPT_URL, json=data)
+    # Send the data to Google Apps Script
+    response = requests.post(GOOGLE_SCRIPT_URL, json=data)
+    
+    # Store data in the local database
+    create_table()
+    connection = sqlite3.connect(DB_FILE)
+    cursor = connection.cursor()
 
-        # Handle the response from the Google Apps Script if needed
-        if response.status_code == 200:
-            # return "Data sent to Google Apps Script successfully"
-             return jsonify(data)  # Returning the incoming data as JSON
-        else:
-            app.logger.error(f"Failed to send data to Google Apps Script. Status code: {response.status_code}")
-            return "Failed to send data to Google Apps Script"
-    except Exception as e:
-        app.logger.exception("An error occurred during webhook processing.")
-        return "Internal server error", 500
+    # Insert order information
+    cursor.execute('''
+        INSERT INTO orders (chat_id) VALUES (?)
+    ''', (data.get('chatId'),))
+    order_id = cursor.lastrowid  # Get the ID of the inserted order
 
-@app.route('/dataFood', methods=['GET'])
-def get_data_food():
-    try:
-        data = request.json  # Assuming the incoming data is in JSON format
+    # Insert order items
+    for item_id, item_data in data.get('foods', {}).items():
+        cursor.execute('''
+            INSERT INTO order_items (order_id, title, quantity, price) VALUES (?, ?, ?, ?)
+        ''', (order_id, item_data.get('title'), item_data.get('quantity'), item_data.get('price')))
 
-        # Extract relevant information for the /dataFood endpoint
-        food_data = []
-        for food_id, food_info in data.get("foods", {}).items():
-            food_data.append({
-                "id": food_id,
-                "title": food_info.get("title", ""),
-                "quantity": food_info.get("quantity", 0),
-                "price": food_info.get("price", 0)
-            })
+    connection.commit()
+    connection.close()
 
-        # Build the response JSON
-        response_data = {
-            "chatId": data.get("chatId", 0),
-            "foods": food_data
-        }
-
-        return jsonify(response_data)
-    except Exception as e:
-        app.logger.exception("An error occurred during processing the GET request.")
-        return "Internal server error", 500
+    # Handle the response from the Google Apps Script if needed
+    if response.status_code == 200:
+        return "Data sent to Google Apps Script and stored in the database successfully"
+    else:
+        return "Failed to send data to Google Apps Script, but data stored in the database"
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
