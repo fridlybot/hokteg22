@@ -33,6 +33,7 @@ from flask import Flask, request
 from flask_cors import CORS 
 import requests
 import sqlite3
+import os
 
 app = Flask(__name__)
 CORS(app)
@@ -42,27 +43,17 @@ GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzRuc_TqUsLK7bmYj3Q
 
 # SQLite database file
 DB_FILE = "dataDB.db"
+SQL_SCRIPT = "init.sql"
 
-# Create a table if it doesn't exist
-def create_table():
+# Create tables from SQL script
+def create_tables():
     connection = sqlite3.connect(DB_FILE)
     cursor = connection.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS orders (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            chat_id INTEGER,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS order_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            order_id INTEGER,
-            title TEXT,
-            quantity INTEGER,
-            price FLOAT
-        )
-    ''')
+    
+    with open(SQL_SCRIPT, 'r') as script_file:
+        script = script_file.read()
+        cursor.executescript(script)
+    
     connection.commit()
     connection.close()
 
@@ -75,7 +66,7 @@ def webhook():
     response = requests.post(GOOGLE_SCRIPT_URL, json=data)
     
     # Store data in the local database
-    create_table()
+    create_tables()
     connection = sqlite3.connect(DB_FILE)
     cursor = connection.cursor()
 
@@ -101,6 +92,7 @@ def webhook():
         return "Failed to send data to Google Apps Script, but data stored in the database"
 
 if __name__ == '__main__':
+    # Create tables when the script is run
+    create_tables()
     app.run(debug=True)
-
 
